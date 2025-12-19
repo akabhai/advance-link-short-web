@@ -1,53 +1,42 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Redirecting...</title>
+    <meta charset="UTF-8">
+    <title>Verifying...</title>
     <style>
-        body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background: #f4f4f4; }
-        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 40px; height: 40px; animation: spin 2s linear infinite; }
+        body { background: #0f172a; color: white; font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; }
+        .loader { border: 4px solid #1e293b; border-top: 4px solid #6366f1; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
-    <div id="msg text-align: center">
-        <div class="loader"></div>
-        <p id="status">Verifying link...</p>
-    </div>
-
+    <div class="loader"></div>
     <script>
-        const BLOGGER_1_URL = "https://webonexa.blogspot.com/p/my-bot-list.html"; // CHANGE THIS
+        const SALT = "SECURE_GATE_99";
+        const BLOGGER_1 = "https://webonexa.blogspot.com/p/my-bot-list.html"; // UPDATE THIS
 
-        async function resolve() {
-            const alias = window.location.hash.substring(1);
-            if(!alias) { document.getElementById('status').innerText = "Error: No ID provided."; return; }
+        async function verify() {
+            const params = new URLSearchParams(window.location.search);
+            const u = params.get('u');
+            const h = params.get('h');
 
-            // Anti-bot basic
-            if(navigator.webdriver) { document.getElementById('status').innerText = "Bots not allowed."; return; }
+            if(!u || !h || navigator.webdriver) {
+                document.body.innerHTML = "Access Denied: Automated tools detected.";
+                return;
+            }
 
-            try {
-                const response = await fetch('links.json');
-                const data = await response.json();
-                const linkData = data[alias];
+            const msgUint8 = new TextEncoder().encode(u + SALT);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
+            const check = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
 
-                if(linkData && linkData.active) {
-                    const expiry = new Date(linkData.expiry);
-                    if(expiry < new Date()) {
-                        document.getElementById('status').innerText = "Error: Link expired.";
-                        return;
-                    }
-
-                    // Encode URL to hide it from casual view
-                    const encodedUrl = btoa(linkData.url);
-                    sessionStorage.setItem('init', 'true');
-                    window.location.href = `${BLOGGER_1_URL}?d=${encodedUrl}`;
-                } else {
-                    document.getElementById('status').innerText = "Error: Link not found or disabled.";
-                }
-            } catch (e) {
-                document.getElementById('status').innerText = "Error loading database.";
+            if(h === check) {
+                sessionStorage.setItem('gate_step', 'resolver');
+                window.location.href = `${BLOGGER_1}?u=${encodeURIComponent(u)}&h=${h}`;
+            } else {
+                document.body.innerHTML = "Security Hash Mismatch.";
             }
         }
-        resolve();
+        verify();
     </script>
 </body>
 </html>
