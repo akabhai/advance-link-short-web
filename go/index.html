@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Redirecting...</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <script>
+        const SECRET_KEY = "your-secret-key-change-this"; // Used for transition tokens
+
+        async function resolve() {
+            const params = new URLSearchParams(window.location.search);
+            const slug = window.location.pathname.split('/').pop() || params.get('id');
+            
+            // 1. Bot Detection
+            if (navigator.webdriver || !navigator.languages) {
+                window.location.href = "/error/blocked.html";
+                return;
+            }
+
+            // 2. Fetch Link Data
+            const res = await fetch('/links.json');
+            const data = await res.json();
+            const link = data.links[slug];
+
+            if (!link) { window.location.href = "/404.html"; return; }
+            if (link.status !== 'active') { window.location.href = "/error/disabled.html"; return; }
+            if (new Date(link.expires) < new Date()) { window.location.href = "/error/expired.html"; return; }
+
+            // 3. Logic: If password protected, show UI
+            if (link.password) {
+                let pass = prompt("Enter password:");
+                if (pass !== link.password) { alert("Wrong!"); return; }
+            }
+
+            // 4. Generate Encrypted Payload
+            // Format: target_url | timestamp | salt
+            const payload = `${link.url}|${Date.now()}|${Math.random()}`;
+            const encrypted = CryptoJS.AES.encrypt(payload, SECRET_KEY).toString();
+            const safeToken = btoa(encrypted); // Base64 for URL safety
+
+            // 5. Redirect to Blogger Step 1
+            const blogger1 = "https://your-blogger-site-1.blogspot.com/p/verify.html";
+            window.location.href = `${blogger1}?token=${encodeURIComponent(safeToken)}`;
+        }
+        window.onload = resolve;
+    </script>
+</head>
+<body>
+    <div id="loader">Verifying link safety...</div>
+</body>
+</html>
