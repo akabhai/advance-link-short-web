@@ -3,122 +3,64 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Link Manager Pro</title>
+    <title>SecureLink | Professional Shortener</title>
     <style>
-        :root { --bg: #0f172a; --card: #1e293b; --text: #f8fafc; --primary: #38bdf8; }
-        body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; display: flex; justify-content: center; }
-        .container { max-width: 500px; width: 100%; }
-        .card { background: var(--card); padding: 2rem; border-radius: 1rem; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        h1 { font-size: 1.25rem; margin-bottom: 1.5rem; color: var(--primary); text-align: center; }
-        label { display: block; font-size: 0.8rem; margin-bottom: 5px; opacity: 0.8; }
-        input { width: 100%; padding: 12px; margin-bottom: 15px; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: white; box-sizing: border-box; }
-        button { width: 100%; padding: 12px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; transition: 0.3s; }
-        .btn-primary { background: var(--primary); color: #0f172a; }
-        .btn-save { background: #10b981; color: white; margin-top: 10px; }
-        .status { font-size: 0.85rem; margin-top: 10px; text-align: center; padding: 10px; border-radius: 5px; display: none; }
-        .config-toggle { font-size: 0.7rem; color: var(--primary); cursor: pointer; text-decoration: underline; margin-bottom: 10px; display: block; }
-        #configSection { display: none; border-top: 1px solid #334155; padding-top: 15px; }
+        :root { --p: #6366f1; --p-h: #4f46e5; --bg: #0f172a; --card: #1e293b; --txt: #f8fafc; }
+        body { margin: 0; font-family: 'Inter', sans-serif; background: var(--bg); color: var(--txt); display: flex; align-items: center; justify-content: center; min-height: 100vh; overflow: hidden; }
+        .card { background: var(--card); padding: 2rem; border-radius: 1.5rem; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); width: 100%; max-width: 450px; text-align: center; border: 1px solid rgba(255,255,255,0.1); }
+        h1 { font-size: 1.8rem; margin-bottom: 0.5rem; background: linear-gradient(to right, #818cf8, #c084fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        p { color: #94a3b8; font-size: 0.9rem; margin-bottom: 1.5rem; }
+        input { width: 100%; padding: 12px 16px; border-radius: 0.75rem; border: 1px solid #334155; background: #0f172a; color: white; box-sizing: border-box; font-size: 1rem; margin-bottom: 1rem; transition: 0.2s; }
+        input:focus { outline: none; border-color: var(--p); box-shadow: 0 0 0 3px rgba(99,102,241,0.2); }
+        button { width: 100%; background: var(--p); color: white; border: none; padding: 12px; border-radius: 0.75rem; font-weight: 600; cursor: pointer; transition: 0.2s; }
+        button:hover { background: var(--p-h); transform: translateY(-1px); }
+        #result { margin-top: 1.5rem; display: none; background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 0.5rem; word-break: break-all; font-family: monospace; font-size: 0.85rem; border: 1px dashed #475569; position: relative; }
+        .copy-btn { margin-top: 0.5rem; font-size: 0.7rem; color: var(--p); cursor: pointer; text-decoration: underline; }
     </style>
 </head>
-<body>
-    <div class="container">
-        <div class="card">
-            <h1>Link Shortener CMS</h1>
-            
-            <span class="config-toggle" onclick="document.getElementById('configSection').style.display='block'">⚙️ Setup GitHub Connection</span>
-            <div id="configSection">
-                <label>GitHub Token (Repo Scope)</label>
-                <input type="password" id="ghToken" placeholder="ghp_xxxxxxxxxxxx">
-                <label>Username / Repo Name</label>
-                <input type="text" id="ghRepo" placeholder="username/link-repo">
-                <button class="btn-primary" onclick="saveConfig()">Save Settings Locally</button>
-            </div>
-
-            <hr style="border: 0; border-top: 1px solid #334155; margin: 20px 0;">
-
-            <label>Destination URL</label>
-            <input type="url" id="longUrl" placeholder="https://example.com/very-long-link" required>
-            
-            <label>Custom Alias (Optional)</label>
-            <input type="text" id="alias" placeholder="my-awesome-link">
-
-            <button class="btn-primary" onclick="createLink()">Generate & Save to GitHub</button>
-            <div id="status" class="status"></div>
+<body oncontextmenu="return false;">
+    <div class="card">
+        <h1>SecureLink</h1>
+        <p>Enter a URL to generate a hardened link.</p>
+        <input type="url" id="urlInput" placeholder="https://example.com" required>
+        <button onclick="generateLink()">Generate Secure Link</button>
+        <div id="result">
+            <div id="shortUrl"></div>
+            <div class="copy-btn" onclick="copyUrl()">Copy to clipboard</div>
         </div>
     </div>
 
     <script>
-        // Load saved config from browser storage
-        document.getElementById('ghToken').value = localStorage.getItem('ghToken') || '';
-        document.getElementById('ghRepo').value = localStorage.getItem('ghRepo') || '';
+        const SALT = "SECURE_GATE_99"; // Change this!
+        const BASE_DOMAIN = window.location.origin + window.location.pathname.replace('index.html', '');
 
-        function saveConfig() {
-            localStorage.setItem('ghToken', document.getElementById('ghToken').value);
-            localStorage.setItem('ghRepo', document.getElementById('ghRepo').value);
-            alert("Settings saved to your browser!");
-            document.getElementById('configSection').style.display='none';
+        async function hash(str) {
+            const msgUint8 = new TextEncoder().encode(str + SALT);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
+            return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
         }
 
-        async function createLink() {
-            const token = document.getElementById('ghToken').value;
-            const repo = document.getElementById('ghRepo').value;
-            const url = document.getElementById('longUrl').value;
-            let alias = document.getElementById('alias').value || Math.random().toString(36).substring(2, 7);
-            const status = document.getElementById('status');
-
-            if (!token || !repo || !url) {
-                alert("Please fill in Token, Repo, and URL");
-                return;
-            }
-
-            status.style.display = 'block';
-            status.style.background = '#334155';
-            status.innerText = "Connecting to GitHub...";
-
-            try {
-                // 1. Get the current links.json file to get its SHA (required for updating)
-                const apiUrl = `https://api.github.com/repos/${repo}/contents/go/links.json`;
-                const getRes = await fetch(apiUrl, {
-                    headers: { "Authorization": `token ${token}` }
-                });
-                
-                const fileData = await getRes.json();
-                const sha = fileData.sha;
-                const currentContent = JSON.parse(atob(fileData.content));
-
-                // 2. Add the new link
-                currentContent[alias] = {
-                    url: url,
-                    active: true,
-                    expiry: "2030-12-31"
-                };
-
-                // 3. Push back to GitHub
-                const putRes = await fetch(apiUrl, {
-                    method: "PUT",
-                    headers: {
-                        "Authorization": `token ${token}`,
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify({
-                        message: `Add link: ${alias}`,
-                        content: btoa(JSON.stringify(currentContent, null, 2)),
-                        sha: sha
-                    })
-                });
-
-                if (putRes.ok) {
-                    status.style.background = '#065f46';
-                    status.innerHTML = `Success! Link created:<br><strong>${window.location.origin}/go/#${alias}</strong>`;
-                } else {
-                    throw new Error("Failed to save to GitHub");
-                }
-
-            } catch (err) {
-                status.style.background = '#991b1b';
-                status.innerText = "Error: " + err.message;
-            }
+        async function generateLink() {
+            const url = document.getElementById('urlInput').value;
+            if(!url.startsWith('https://')) return alert('HTTPS only allowed!');
+            
+            const encoded = btoa(url);
+            const signature = await hash(encoded);
+            const finalUrl = `${BASE_DOMAIN}go/?u=${encodeURIComponent(encoded)}&h=${signature}`;
+            
+            document.getElementById('result').style.display = 'block';
+            document.getElementById('shortUrl').innerText = finalUrl;
         }
+
+        function copyUrl() {
+            navigator.clipboard.writeText(document.getElementById('shortUrl').innerText);
+            alert('Copied!');
+        }
+
+        // Anti-Inspect
+        document.onkeydown = (e) => {
+            if (e.keyCode == 123 || (e.ctrlKey && e.shiftKey && [73, 74, 85].includes(e.keyCode))) return false;
+        };
     </script>
 </body>
 </html>
