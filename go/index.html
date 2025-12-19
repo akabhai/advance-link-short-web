@@ -2,49 +2,52 @@
 <html>
 <head>
     <title>Redirecting...</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
-    <script>
-        const SECRET_KEY = "your-secret-key-change-this"; // Used for transition tokens
-
-        async function resolve() {
-            const params = new URLSearchParams(window.location.search);
-            const slug = window.location.pathname.split('/').pop() || params.get('id');
-            
-            // 1. Bot Detection
-            if (navigator.webdriver || !navigator.languages) {
-                window.location.href = "/error/blocked.html";
-                return;
-            }
-
-            // 2. Fetch Link Data
-            const res = await fetch('/links.json');
-            const data = await res.json();
-            const link = data.links[slug];
-
-            if (!link) { window.location.href = "/404.html"; return; }
-            if (link.status !== 'active') { window.location.href = "/error/disabled.html"; return; }
-            if (new Date(link.expires) < new Date()) { window.location.href = "/error/expired.html"; return; }
-
-            // 3. Logic: If password protected, show UI
-            if (link.password) {
-                let pass = prompt("Enter password:");
-                if (pass !== link.password) { alert("Wrong!"); return; }
-            }
-
-            // 4. Generate Encrypted Payload
-            // Format: target_url | timestamp | salt
-            const payload = `${link.url}|${Date.now()}|${Math.random()}`;
-            const encrypted = CryptoJS.AES.encrypt(payload, SECRET_KEY).toString();
-            const safeToken = btoa(encrypted); // Base64 for URL safety
-
-            // 5. Redirect to Blogger Step 1
-            const blogger1 = "https://webonexa.blogspot.com/p/my-bot-list.html";
-            window.location.href = `${blogger1}?token=${encodeURIComponent(safeToken)}`;
-        }
-        window.onload = resolve;
-    </script>
+    <style>
+        body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background: #f4f4f4; }
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 40px; height: 40px; animation: spin 2s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
 </head>
 <body>
-    <div id="loader">Verifying link safety...</div>
+    <div id="msg text-align: center">
+        <div class="loader"></div>
+        <p id="status">Verifying link...</p>
+    </div>
+
+    <script>
+        const BLOGGER_1_URL = "https://yourblog1.blogspot.com/"; // CHANGE THIS
+
+        async function resolve() {
+            const alias = window.location.hash.substring(1);
+            if(!alias) { document.getElementById('status').innerText = "Error: No ID provided."; return; }
+
+            // Anti-bot basic
+            if(navigator.webdriver) { document.getElementById('status').innerText = "Bots not allowed."; return; }
+
+            try {
+                const response = await fetch('links.json');
+                const data = await response.json();
+                const linkData = data[alias];
+
+                if(linkData && linkData.active) {
+                    const expiry = new Date(linkData.expiry);
+                    if(expiry < new Date()) {
+                        document.getElementById('status').innerText = "Error: Link expired.";
+                        return;
+                    }
+
+                    // Encode URL to hide it from casual view
+                    const encodedUrl = btoa(linkData.url);
+                    sessionStorage.setItem('init', 'true');
+                    window.location.href = `${BLOGGER_1_URL}?d=${encodedUrl}`;
+                } else {
+                    document.getElementById('status').innerText = "Error: Link not found or disabled.";
+                }
+            } catch (e) {
+                document.getElementById('status').innerText = "Error loading database.";
+            }
+        }
+        resolve();
+    </script>
 </body>
 </html>
