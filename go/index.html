@@ -38,7 +38,7 @@
             const safeToken = btoa(encrypted); // Base64 for URL safety
 
             // 5. Redirect to Blogger Step 1
-            const blogger1 = "https://your-blogger-site-1.blogspot.com/p/verify.html";
+            const blogger1 = "https://webonexa.blogspot.com/p/my-bot-list.html";
             window.location.href = `${blogger1}?token=${encodeURIComponent(safeToken)}`;
         }
         window.onload = resolve;
