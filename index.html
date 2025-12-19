@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StaticShort - Secure Link Management</title>
+    <style>
+        :root { --bg: #ffffff; --text: #1a1a1a; --primary: #2563eb; --secondary: #f3f4f6; }
+        @media (prefers-color-scheme: dark) { :root { --bg: #111827; --text: #f9fafb; --primary: #3b82f6; --secondary: #1f2937; } }
+        body { font-family: -apple-system, system-ui, sans-serif; background: var(--bg); color: var(--text); display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+        .card { background: var(--secondary); padding: 2rem; border-radius: 1rem; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); width: 100%; max-width: 450px; }
+        h1 { margin-top: 0; font-size: 1.5rem; text-align: center; color: var(--primary); }
+        input { width: 100%; padding: 0.75rem; margin: 0.5rem 0; border-radius: 0.5rem; border: 1px solid #ccc; box-sizing: border-box; background: var(--bg); color: var(--text); }
+        button { width: 100%; padding: 0.75rem; background: var(--primary); color: white; border: none; border-radius: 0.5rem; cursor: pointer; font-weight: 600; margin-top: 1rem; }
+        button:hover { opacity: 0.9; }
+        .result { margin-top: 1.5rem; padding: 1rem; background: var(--bg); border-radius: 0.5rem; display: none; }
+        .qr-box { text-align: center; margin-top: 1rem; }
+        .code-output { font-family: monospace; font-size: 0.8rem; background: #000; color: #0f0; padding: 0.5rem; border-radius: 4px; overflow-x: auto; margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>Link Shortener Admin</h1>
+        <input type="url" id="longUrl" placeholder="https://dest-url.com/path" required>
+        <input type="text" id="alias" placeholder="custom-alias (optional)">
+        <button onclick="generateLink()">Generate Entry</button>
+
+        <div id="resultArea" class="result">
+            <p><strong>Short Link:</strong> <br><span id="shortLink" style="color:var(--primary)"></span></p>
+            <button onclick="copyLink()" style="background:#10b981">Copy Link</button>
+            <div class="qr-box" id="qrcode"></div>
+            <p style="font-size: 0.8rem; margin-top:1rem;">Add this to <code>links.json</code>:</p>
+            <div id="jsonOutput" class="code-output"></div>
+        </div>
+    </div>
+
+    <script>
+        function generateLink() {
+            const url = document.getElementById('longUrl').value;
+            const alias = document.getElementById('alias').value || Math.random().toString(36).substring(2, 7);
+            
+            if(!url.startsWith('https://')) return alert("Only HTTPS allowed for security.");
+            if(url.includes('javascript:') || url.includes('data:')) return alert("Invalid URL.");
+
+            const baseUrl = window.location.href.split('index.html')[0] + 'go/#' + alias;
+            document.getElementById('shortLink').innerText = baseUrl;
+            
+            // JSON Entry Generation
+            const entry = { [alias]: { "url": url, "active": true, "expiry": "2030-12-31" } };
+            document.getElementById('jsonOutput').innerText = JSON.stringify(entry, null, 2);
+            
+            // QR Code (Using open API)
+            document.getElementById('qrcode').innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(baseUrl)}" alt="QR Code">`;
+            document.getElementById('resultArea').style.display = 'block';
+        }
+
+        function copyLink() {
+            const text = document.getElementById('shortLink').innerText;
+            navigator.clipboard.writeText(text);
+            alert("Copied!");
+        }
+    </script>
+</body>
+</html>
