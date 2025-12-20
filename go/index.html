@@ -1,39 +1,73 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><meta charset="UTF-8"><title>Verifying...</title></head>
-<body style="background:#0f172a;color:white;display:flex;align-items:center;justify-content:center;height:100vh;">
-    <div id="msg">Verifying Security Integrity...</div>
-    <script>
-        const SALT = "SECURE_GATE_99"; 
-        const BLOGGER_1 = "https://yourblog1.blogspot.com/"; // UPDATE THIS
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verifying Connection...</title>
+    <style>
+        body { background: #0f172a; color: white; display: flex; justify-content: center; align-items: center; height: 100vh; font-family: sans-serif; flex-direction: column; }
+        .loader { width: 48px; height: 48px; border: 5px solid #FFF; border-bottom-color: #00f2ea; border-radius: 50%; animation: rotation 1s linear infinite; }
+        @keyframes rotation { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        p { margin-top: 20px; color: #94a3b8; }
+    </style>
+</head>
+<body>
+    <div class="loader"></div>
+    <p id="status">Establishing secure handshake...</p>
 
-        async function hash(str) {
-            const msgUint8 = new TextEncoder().encode(str + SALT);
-            const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
+    <script>
+        /* --- CONFIGURATION --- */
+        const SECRET_SALT = "Xy9_#m2$Lp!5"; // MUST MATCH
+        const BLOGGER_STEP_1_URL = "https://webonexa.blogspot.com/p/my-bot-list.html"; // Update this
+
+        /* --- ANTI-INSPECT --- */
+        document.addEventListener('contextmenu', e => e.preventDefault());
+        document.onkeydown = function(e) {
+            if(e.keyCode == 123 || (e.ctrlKey && e.shiftKey && (e.keyCode == 'I'.charCodeAt(0) || e.keyCode == 'J'.charCodeAt(0)))) return false;
+        };
+
+        /* --- LOGIC --- */
+        async function sha256(message) {
+            const msgBuffer = new TextEncoder().encode(message);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
             return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
         }
 
-        async function verify() {
+        async function resolve() {
             const params = new URLSearchParams(window.location.search);
-            const u = params.get('u'); // Encoded URL
-            const h = params.get('h'); // Original Hash
+            const data = params.get('d');
+            const signature = params.get('v');
+            const status = document.getElementById('status');
 
-            if(!u || !h) {
-                document.getElementById('msg').innerText = "Invalid Link Structure.";
+            // 1. Bot Check
+            if (navigator.webdriver) {
+                status.innerText = "Error: Automated traffic detected.";
                 return;
             }
 
-            // Verify authenticity of the link
-            const check = await hash(u);
-            if(h === check) {
-                // Generate a one-time Step-1 signature based on the hash
-                const s1 = await hash(h + "STEP1");
-                window.location.href = `${BLOGGER_1}?u=${encodeURIComponent(u)}&h=${h}&s1=${s1}`;
+            if (!data || !signature) {
+                status.innerText = "Error: Invalid parameters.";
+                return;
+            }
+
+            // 2. Hash Verification
+            const calcHash = await sha256(data + SECRET_SALT);
+            
+            if (calcHash === signature) {
+                status.innerText = "Security check passed. Redirecting...";
+                // Session Token for Step 1
+                sessionStorage.setItem('secure_flow', 'step1_ready');
+                // Redirect
+                setTimeout(() => {
+                    window.location.replace(`${BLOGGER_STEP_1_URL}?d=${data}&v=${signature}`);
+                }, 800);
             } else {
-                document.getElementById('msg').innerText = "Security Hash Mismatch.";
+                status.innerText = "Error: Link tampering detected.";
+                status.style.color = "#ff4757";
             }
         }
-        verify();
+
+        resolve();
     </script>
 </body>
 </html>
