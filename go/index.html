@@ -33,13 +33,12 @@
             return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
         }
 
-        async function resolve() {
+       async function resolve() {
             const params = new URLSearchParams(window.location.search);
-            const data = params.get('d');
+            const data = params.get('d'); // Automatically decodes to Base64
             const signature = params.get('v');
             const status = document.getElementById('status');
 
-            // 1. Bot Check
             if (navigator.webdriver) {
                 status.innerText = "Error: Automated traffic detected.";
                 return;
@@ -50,19 +49,24 @@
                 return;
             }
 
-            // 2. Hash Verification
+            // Hash the decoded data (Base64) + Salt
             const calcHash = await sha256(data + SECRET_SALT);
             
+            // DEBUGGING: Uncomment the line below if it still fails to see the mismatch in Console
+            // console.log("Calculated:", calcHash, "Received:", signature);
+
             if (calcHash === signature) {
                 status.innerText = "Security check passed. Redirecting...";
-                // Session Token for Step 1
                 sessionStorage.setItem('secure_flow', 'step1_ready');
-                // Redirect
+                
+                // We must re-encode 'data' before sending to next URL
+                const nextUrlParam = encodeURIComponent(data);
+                
                 setTimeout(() => {
-                    window.location.replace(`${BLOGGER_STEP_1_URL}?d=${data}&v=${signature}`);
+                    window.location.replace(`${BLOGGER_STEP_1_URL}?d=${nextUrlParam}&v=${signature}`);
                 }, 800);
             } else {
-                status.innerText = "Error: Link tampering detected.";
+                status.innerText = "Link tampering detected."; // This is where you were stuck
                 status.style.color = "#ff4757";
             }
         }
