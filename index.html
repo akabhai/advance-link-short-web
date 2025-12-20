@@ -41,7 +41,7 @@
             return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
         }
 
-        async function generateLink() {
+       async function generateLink() {
             const input = document.getElementById('urlInput').value.trim();
             const errDiv = document.getElementById('errorMsg');
             const resDiv = document.getElementById('resultArea');
@@ -49,7 +49,6 @@
             errDiv.style.display = 'none';
             resDiv.style.display = 'none';
 
-            // Validation
             if (!input.startsWith('http')) {
                 errDiv.innerText = "Error: URL must start with http:// or https://";
                 errDiv.style.display = 'block';
@@ -57,21 +56,25 @@
             }
 
             try {
-                // A) Double Encoding
+                // 1. Convert URL to Base64
                 const base64 = btoa(input);
+                
+                // 2. Hash the Base64 directly (FIXED)
+                const signature = await sha256(base64 + SECRET_SALT);
+
+                // 3. Create URL Safe string for the link
                 const encodedData = encodeURIComponent(base64);
 
-                // B) Hash Generation
-                const signature = await sha256(encodedData + SECRET_SALT);
-
-                // Construct URL
-                // Assumes this file is at root, and resolver is at /go/
                 const currentOrigin = window.location.origin + window.location.pathname.replace('index.html', '');
-                const finalLink = `${currentOrigin}${RESOLVER_PATH.replace(/^\//, '')}?d=${encodedData}&v=${signature}`;
+                // Ensure no double slash if path is empty
+                const cleanPath = RESOLVER_PATH.startsWith('/') ? RESOLVER_PATH : '/' + RESOLVER_PATH;
+                
+                const finalLink = `${currentOrigin}${cleanPath}?d=${encodedData}&v=${signature}`;
 
                 resDiv.innerHTML = `<strong>Secure Link Generated:</strong><br><br><a href="${finalLink}" style="color:#00f2ea" target="_blank">${finalLink}</a>`;
                 resDiv.style.display = 'block';
             } catch (e) {
+                console.error(e);
                 errDiv.innerText = "Encryption failed. Browser not compatible.";
                 errDiv.style.display = 'block';
             }
